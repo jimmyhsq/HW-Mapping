@@ -9,6 +9,7 @@ library(htmlwidgets)
 library(lattice)
 library(dplyr)
 library(shiny)
+library(ggmap)
 
 Street_Clean  <- read.csv("Trash .csv") %>% select(-PublicWorksDistrict)
 
@@ -39,41 +40,40 @@ ui <- fluidPage(
     titlePanel("Different day of trash and recycling in Boston"),
     sidebarLayout(
         sidebarPanel(
-            selectInput("day", "Select a day", unique(data_final$Trash))
+            selectInput("day", "Select a day", sort(unique(data_final$Trash)))
         ),
 
         mainPanel(
-           leafletOptions("Map")
+           leafletOutput("Plot", width= 2000, height = 1000)
         )
     )
 )
 
-# Define server logic required to draw a histogram
+
 server <- function(input, output,session) {
 
-data_final <- filter(data_final, Trash == input$Trash)
     
-output$Map <- renderLeaflet({
+output$Plot<- renderLeaflet({
         bounds <- map("state", c('Massachusetts'), fill=TRUE, plot=FALSE)
         icons <- awesomeIcons(
             icon = 'disc',
             iconColor = 'blue',
             library = 'ion',
-            markerColor = 'Black',
+            markerColor = 'yellow',
             squareMarker = TRUE
 )
-        map <- leaflet(data = data_final) %>%
-            setView(-71.08523,42.29584,zoom = 12) %>%
+       data_used <- data_final %>% filter( Trash == input$day)
+        leaflet(data = data_used) %>%
+            setView(mean(data_used$lon)+0.3,mean(data_used$Lat),zoom = 11) %>%
             addProviderTiles("CartoDB.Positron", group = "Map") %>%
-            addMarkers(~lon, ~Lat, label = ~Address, group = "Trash") %>%
+            addAwesomeMarkers(~lon, ~Lat, label = ~Address, group = "Trash", icon = icons) %>%
             addPolygons(data = bounds, group="States", weight=2, fillOpacity = 0) %>%
             addScaleBar(position = "bottomleft") %>%
             addLayersControl(
                 baseGroups = c("Map"),
                 overlayGroups = c("Trash", "States"),
-                options = layersControlOptions(collapsed = FALSE)
+                options = layersControlOptions(collapsed = TRUE)
             )
-        invisible(print(map))
     })
 }
 
